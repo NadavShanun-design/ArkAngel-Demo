@@ -1,0 +1,68 @@
+Prompt 1 — Product brief, scope, and acceptance criteria
+You are a senior full-stack engineer. Build a local prototype of a Chrome/Chromium Manifest V3 extension that provides a side-panel AI agent. It must read only the current active tab’s visible context (DOM-derived metadata) via a content script, send that context to a localhost backend for processing, and display the response in the side panel. No cloud services. No audio capture. No screen recording. Privacy by default.
+Objectives
+Side-panel UI (“Ask on this page”) that sends a user’s question + page context to a local HTTP server and shows the answer.
+
+
+Content script that collects lightweight context: page title, URL, meta description, first few headings, a short list of visible “actionable” elements (buttons/links with role=button), a tiny form summary, and any currently selected text.
+
+
+Background/service worker to coordinate tab info and message passing.
+
+
+Local backend (Node/Express preferred) with a single endpoint /ask that echoes or summarises context and returns a JSON {answer: string}. (Stub for now—later replace with a real LLM.)
+
+
+Everything must run locally: extension is loaded unpacked; backend runs on http://localhost:3000.
+
+
+Non-goals (for this prototype)
+No login/auth.
+
+
+No persistence beyond chrome.storage.local for simple settings.
+
+
+No meeting/audio features.
+
+
+No scraping of cross-origin iframes or hidden content; collect only what’s readily visible/accessible.
+
+
+Constraints & permissions
+MV3 extension with: activeTab, tabs, scripting, storage.
+
+
+host_permissions: http://localhost:3000/* (dev only).
+
+
+Must handle CORS from the backend (allow chrome-extension://* in dev).
+
+
+Deliverables
+Complete repo with /extension (MV3 code) and /server (Node/Express).
+
+
+README.md with run instructions and screenshots/gifs.
+
+
+Basic error states in the UI (network down, no context, backend not running).
+
+
+Lightweight telemetry/logging to console only (dev).
+
+
+Acceptance criteria (“done when”)
+I can npm start the server (localhost:3000) and Load unpacked the extension.
+
+
+Opening any web page, I can open the side panel, press Refresh context, see JSON context, ask a question, and receive a text answer.
+
+
+Selected text on the page is included in the context payload when present.
+
+
+If the server is offline, the side panel shows a helpful, actionable error (retry link).
+
+
+Context collection is performant (<50ms for average pages) and guarded (try/catch, timeouts).

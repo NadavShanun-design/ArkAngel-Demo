@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrome Extension Side Panel - AI Agent</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'roboto': ['Roboto', 'sans-serif'],
+                        'mono': ['Roboto Mono', 'monospace'],
+                    },
+                    colors: {
+                        'chrome-blue': '#1a73e8',
+                        'chrome-gray': '#5f6368',
+                        'chrome-success': '#34a853',
+                        'chrome-error': '#ea4335',
+                        'chrome-dark': '#202124',
+                        'chrome-light': '#f8f9fa',
+                    },
+                    width: {
+                        'panel': '400px',
+                    }
+                }
+            }
+        };
+    </script>
+</head>
+<body class="font-roboto bg-gray-50 h-screen overflow-hidden">
+    <!-- @COMPONENT: SidePanelContainer [Main extension side panel wrapper] -->
+    <div class="w-panel h-full bg-white border-l border-gray-200 flex flex-col">
+        <!-- Header Section -->
+        <!-- @COMPONENT: PanelHeader [Extension branding and status] -->
+        <div class="flex-shrink-0 p-4 border-b border-gray-200 bg-chrome-light">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-chrome-blue rounded-lg flex items-center justify-center">
+                        <i class="fas fa-robot text-white text-sm"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-sm font-medium text-chrome-dark">AI Page Assistant</h1>
+                        <p class="text-xs text-chrome-gray">Ask questions about this page</p>
+                    </div>
+                </div>
+                <!-- @STATE: connectionStatus:string = 'connected' | 'disconnected' | 'loading' -->
+                <div class="flex items-center space-x-1" data-bind="connectionStatus">
+                    <div class="w-2 h-2 bg-chrome-success rounded-full animate-pulse"></div>
+                    <span class="text-xs text-chrome-success">Connected</span>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: PanelHeader -->
+
+        <!-- Main Content Area -->
+        <div class="flex-1 overflow-y-auto">
+            <!-- Current Page Context Section -->
+            <!-- @COMPONENT: PageContextViewer [Displays extracted page context] -->
+            <div class="p-4 border-b border-gray-100">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-medium text-chrome-dark">Page Context</h2>
+                    <button 
+                        class="text-xs bg-chrome-blue text-white px-3 py-1 rounded-md hover:bg-blue-600 transition-colors flex items-center space-x-1"
+                        data-event="click:refreshContext"
+                        data-implementation="Should extract fresh page context via content script">
+                        <i class="fas fa-refresh text-xs"></i>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+
+                <!-- Context Display Card -->
+                <div class="bg-gray-50 rounded-lg p-3 border border-gray-200" data-mock="true">
+                    <div class="space-y-2 text-xs">
+                        <div class="flex justify-between">
+                            <span class="font-medium text-chrome-gray">Title:</span>
+                            <span class="text-chrome-dark font-mono text-right max-w-48 truncate" data-bind="pageContext.title">OpenAI Documentation</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-medium text-chrome-gray">URL:</span>
+                            <span class="text-chrome-dark font-mono text-right max-w-48 truncate" data-bind="pageContext.url">https://docs.openai.com/api</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-medium text-chrome-gray">Headings:</span>
+                            <span class="text-chrome-dark text-right" data-bind="pageContext.headings.length">4 found</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-medium text-chrome-gray">Actions:</span>
+                            <span class="text-chrome-dark text-right" data-bind="pageContext.actions.length">12 buttons/links</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Collapsible JSON Viewer -->
+                    <!-- @FUNCTIONALITY: Should toggle expanded/collapsed view of full context JSON -->
+                    <div class="mt-3 pt-3 border-t border-gray-200">
+                        <button 
+                            class="w-full text-left text-xs text-chrome-blue hover:text-blue-600 flex items-center justify-between"
+                            data-event="click:toggleJsonView"
+                            data-implementation="Toggle JSON context display">
+                            <span>View Full Context</span>
+                            <i class="fas fa-chevron-down transition-transform" data-bind="isJsonExpanded"></i>
+                        </button>
+                        
+                        <!-- @STATE: isJsonExpanded:boolean = false -->
+                        <div class="mt-2 hidden" data-bind="isJsonExpanded" data-mock="true">
+                            <pre class="bg-chrome-dark text-chrome-light text-xs p-3 rounded-md overflow-x-auto font-mono">
+{
+  "title": "OpenAI API Documentation",
+  "url": "https://docs.openai.com/api",
+  "meta_description": "Comprehensive guide to OpenAI API",
+  "headings": [
+    "Getting Started",
+    "Authentication", 
+    "Making Requests",
+    "Rate Limits"
+  ],
+  "actions": [
+    {"text": "Sign Up", "type": "button"},
+    {"text": "View Examples", "type": "link"}
+  ],
+  "selected_text": "API keys are used for authentication"
+}</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selected Text Indicator -->
+                <div class="mt-3 p-2 bg-blue-50 rounded-md border border-blue-200" data-bind="selectedText" data-mock="true">
+                    <div class="flex items-start space-x-2">
+                        <i class="fas fa-quote-left text-chrome-blue text-xs mt-0.5"></i>
+                        <div>
+                            <p class="text-xs text-chrome-blue font-medium">Selected Text:</p>
+                            <p class="text-xs text-chrome-dark italic" data-bind="pageContext.selectedText">
+                                "API keys are used for authentication and should be kept secure."
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: PageContextViewer -->
+
+            <!-- Question Input Section -->
+            <!-- @COMPONENT: QuestionInput [User input for asking questions] -->
+            <div class="p-4 border-b border-gray-100">
+                <h2 class="text-sm font-medium text-chrome-dark mb-3">Ask a Question</h2>
+                
+                <div class="space-y-3">
+                    <div class="relative">
+                        <textarea 
+                            class="w-full p-3 border border-gray-200 rounded-lg resize-none text-sm focus:outline-none focus:ring-2 focus:ring-chrome-blue focus:border-transparent"
+                            rows="3"
+                            placeholder="What would you like to know about this page?"
+                            data-bind="questionText"
+                            data-implementation="Should capture user question input"></textarea>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2 text-xs text-chrome-gray">
+                            <i class="fas fa-info-circle"></i>
+                            <span>Context will be included automatically</span>
+                        </div>
+                        
+                        <button 
+                            class="bg-chrome-blue text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                            data-event="click:submitQuestion"
+                            data-implementation="Should send question + context to backend /ask endpoint">
+                            <i class="fas fa-paper-plane text-xs"></i>
+                            <span>Ask</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: QuestionInput -->
+
+            <!-- Answer Display Section -->
+            <!-- @COMPONENT: AnswerDisplay [Shows AI response] -->
+            <div class="p-4" data-mock="true">
+                <h2 class="text-sm font-medium text-chrome-dark mb-3">Answer</h2>
+                
+                <!-- Loading State -->
+                <div class="hidden" data-bind="isLoading">
+                    <div class="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg">
+                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-chrome-blue"></div>
+                        <span class="text-sm text-chrome-gray">Processing your question...</span>
+                    </div>
+                </div>
+
+                <!-- Answer Content -->
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200" data-bind="answer">
+                    <div class="flex items-start space-x-3">
+                        <div class="w-6 h-6 bg-chrome-success rounded-full flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-check text-white text-xs"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm text-chrome-dark leading-relaxed" data-bind="answerText">
+                                Based on the page content, API keys are authentication credentials that allow you to access OpenAI's services. They should be kept secure and never exposed in client-side code. You can find your API keys in your OpenAI account settings under the API section.
+                            </p>
+                            <div class="mt-3 pt-3 border-t border-gray-200">
+                                <div class="flex items-center justify-between text-xs text-chrome-gray">
+                                    <span>Response time: 234ms</span>
+                                    <span data-bind="responseTimestamp">2 minutes ago</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Copy to Clipboard -->
+                <div class="mt-3 flex justify-end">
+                    <button 
+                        class="text-xs text-chrome-blue hover:text-blue-600 flex items-center space-x-1"
+                        data-event="click:copyAnswer"
+                        data-implementation="Should copy answer text to clipboard">
+                        <i class="fas fa-copy"></i>
+                        <span>Copy Answer</span>
+                    </button>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: AnswerDisplay -->
+
+            <!-- Error State Section -->
+            <!-- @COMPONENT: ErrorDisplay [Shows backend connection errors] -->
+            <div class="hidden p-4" data-bind="errorState" data-implementation="Show when backend is offline or error occurs">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-start space-x-3">
+                        <div class="w-6 h-6 bg-chrome-error rounded-full flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-exclamation-triangle text-white text-xs"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-sm font-medium text-chrome-error">Connection Error</h3>
+                            <p class="text-sm text-red-700 mt-1" data-bind="errorMessage">
+                                Cannot connect to local backend server. Make sure the server is running on http://localhost:3000
+                            </p>
+                            <div class="mt-3 flex space-x-3">
+                                <button 
+                                    class="text-xs bg-chrome-error text-white px-3 py-1 rounded-md hover:bg-red-600 transition-colors"
+                                    data-event="click:retryConnection"
+                                    data-implementation="Should retry backend connection">
+                                    <i class="fas fa-redo text-xs mr-1"></i>
+                                    Retry
+                                </button>
+                                <button 
+                                    class="text-xs text-chrome-error hover:text-red-600"
+                                    data-event="click:openHelp"
+                                    data-implementation="Should show help/setup instructions">
+                                    <i class="fas fa-question-circle text-xs mr-1"></i>
+                                    Help
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: ErrorDisplay -->
+
+            <!-- Conversation History -->
+            <!-- @COMPONENT: ConversationHistory [Previous Q&A pairs] -->
+            <div class="p-4 border-t border-gray-100" data-mock="true">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-medium text-chrome-dark">Recent Questions</h2>
+                    <button 
+                        class="text-xs text-chrome-gray hover:text-chrome-blue"
+                        data-event="click:clearHistory"
+                        data-implementation="Should clear conversation history">
+                        Clear
+                    </button>
+                </div>
+
+                <!-- @MAP: conversationHistory.map(item => ( -->
+                <div class="space-y-3" data-bind="conversationHistory">
+                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <div class="text-xs">
+                            <p class="text-chrome-dark font-medium mb-1">Q: How do I authenticate with the API?</p>
+                            <p class="text-chrome-gray text-xs mb-2">A: You need to include your API key in the Authorization header...</p>
+                            <span class="text-chrome-gray text-xs">5 minutes ago</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <div class="text-xs">
+                            <p class="text-chrome-dark font-medium mb-1">Q: What are the rate limits?</p>
+                            <p class="text-chrome-gray text-xs mb-2">A: Rate limits vary by model and usage tier...</p>
+                            <span class="text-chrome-gray text-xs">8 minutes ago</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_MAP )) -->
+            </div>
+            <!-- @END_COMPONENT: ConversationHistory -->
+        </div>
+
+        <!-- Footer Section -->
+        <!-- @COMPONENT: PanelFooter [Settings and info] -->
+        <div class="flex-shrink-0 p-4 border-t border-gray-200 bg-chrome-light">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <button 
+                        class="text-xs text-chrome-gray hover:text-chrome-blue flex items-center space-x-1"
+                        data-event="click:openSettings"
+                        data-implementation="Should open extension settings">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </button>
+                    
+                    <button 
+                        class="text-xs text-chrome-gray hover:text-chrome-blue flex items-center space-x-1"
+                        data-event="click:openHelp"
+                        data-implementation="Should open help documentation">
+                        <i class="fas fa-question-circle"></i>
+                        <span>Help</span>
+                    </button>
+                </div>
+                
+                <div class="text-xs text-chrome-gray">
+                    v1.0.0
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: PanelFooter -->
+    </div>
+    <!-- @END_COMPONENT: SidePanelContainer -->
+
+    <script>
+        // TODO: Implement extension messaging, content script communication, and backend API calls
+        (function() {
+            // Scoped variables for UI state management
+            let isJsonExpanded = false;
+            let isLoading = false;
+            let connectionStatus = 'connected';
+
+            // Mock interaction handlers for demonstration
+            const refreshContextBtn = document.querySelector('[data-event="click:refreshContext"]');
+            const toggleJsonBtn = document.querySelector('[data-event="click:toggleJsonView"]');
+            const submitBtn = document.querySelector('[data-event="click:submitQuestion"]');
+
+            refreshContextBtn?.addEventListener('click', function() {
+                console.log('TODO: Refresh page context via content script');
+                // TODO: Send message to content script to extract fresh page context
+            });
+
+            toggleJsonBtn?.addEventListener('click', function() {
+                isJsonExpanded = !isJsonExpanded;
+                const jsonContainer = document.querySelector('[data-bind="isJsonExpanded"]');
+                const chevron = this.querySelector('i');
+                
+                if (isJsonExpanded) {
+                    jsonContainer.classList.remove('hidden');
+                    chevron.style.transform = 'rotate(180deg)';
+                } else {
+                    jsonContainer.classList.add('hidden');
+                    chevron.style.transform = 'rotate(0deg)';
+                }
+            });
+
+            submitBtn?.addEventListener('click', function() {
+                console.log('TODO: Submit question to backend /ask endpoint');
+                // TODO: Collect question text and page context, send to localhost:3000/ask
+            });
+
+            // Mock connection status updates
+            function updateConnectionStatus(status) {
+                const statusIndicator = document.querySelector('[data-bind="connectionStatus"]');
+                const dot = statusIndicator.querySelector('div');
+                const text = statusIndicator.querySelector('span');
+                
+                switch(status) {
+                    case 'connected':
+                        dot.className = 'w-2 h-2 bg-chrome-success rounded-full animate-pulse';
+                        text.textContent = 'Connected';
+                        text.className = 'text-xs text-chrome-success';
+                        break;
+                    case 'disconnected':
+                        dot.className = 'w-2 h-2 bg-chrome-error rounded-full';
+                        text.textContent = 'Offline';
+                        text.className = 'text-xs text-chrome-error';
+                        break;
+                    case 'loading':
+                        dot.className = 'w-2 h-2 bg-yellow-500 rounded-full animate-spin';
+                        text.textContent = 'Connecting...';
+                        text.className = 'text-xs text-yellow-600';
+                        break;
+                }
+            }
+
+            // Development helpers
+            console.log('Chrome Extension Side Panel mockup loaded');
+            console.log('TODO: Implement Chrome extension APIs, content script communication, and backend integration');
+        })();
+    </script>
+</body>
+</html>

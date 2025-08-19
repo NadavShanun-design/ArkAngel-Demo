@@ -1,0 +1,136 @@
+Prompt 2 — Extension architecture & implementation (MV3)
+Create the Chrome/Chromium MV3 extension in /extension. Produce production-quality, commented code.
+File structure
+/extension
+  ├─ manifest.json
+  ├─ sw.js                  # service worker (background)
+  ├─ content.js             # content script: context collector
+  ├─ sidepanel.html
+  ├─ sidepanel.js
+  ├─ styles.css
+  └─ assets/icon-*.png
+
+manifest.json requirements
+manifest_version: 3
+
+
+name, version, description (clear, concise)
+
+
+permissions: activeTab, tabs, scripting, storage
+
+
+host_permissions: http://localhost:3000/*
+
+
+background.service_worker: sw.js
+
+
+side_panel.default_path: sidepanel.html
+
+
+content_scripts:
+
+
+matches: ["<all_urls>"]
+
+
+js: ["content.js"]
+
+
+run_at: document_idle
+
+
+Content script (content.js)
+Implement collectContext() that returns:
+type PageContext = {
+  title: string;
+  url: string;
+  metaDescription: string;
+  selection: string;             // window.getSelection().toString()
+  headings: string[];            // top n H1/H2 (~8 max)
+  buttons: string[];             // up to 12 labels/aria/titles
+  forms: { id?: string; inputs: number }[]; // count only
+  timestamp: string;             // ISO
+};
+
+Guidelines:
+Use DOM APIs only (no frameworks).
+
+
+Trim whitespace, cap list lengths, ignore empty strings.
+
+
+Avoid expensive queries; prefer targeted selectors and early exits.
+
+
+Add safe guards for shadow DOM pages (best-effort).
+
+
+Expose a listener: chrome.runtime.onMessage handles {type: "COLLECT_CONTEXT"} and returns {context: PageContext}.
+
+
+Service worker (sw.js)
+Listener for messages from the side panel:
+
+
+GET_ACTIVE_TAB → chrome.tabs.query({active:true, currentWindow:true})
+
+
+REQUEST_CONTEXT → chrome.tabs.sendMessage(tabId, {type:"COLLECT_CONTEXT"})
+
+
+Defensive coding: handle missing tab, messaging errors, timeouts (e.g., 2s).
+
+
+Side panel (sidepanel.html, sidepanel.js, styles.css)
+Minimal, accessible UI:
+
+
+Textarea for question.
+
+
+Buttons: Refresh context, Ask.
+
+
+Collapsible preformatted block showing current JSON context.
+
+
+Answer area that streams or displays final text.
+
+
+Flow:
+
+
+On open, fetch active tab id and auto-refresh context.
+
+
+On Ask, POST {question, context} to http://localhost:3000/ask.
+
+
+Display loading state; swap to answer or error message.
+
+
+Nice-to-haves:
+
+
+Keyboard shortcut (Ctrl/Cmd+Enter) to submit.
+
+
+Persist last question in chrome.storage.local.
+
+
+Respect user’s colour scheme (prefers-color-scheme).
+
+
+Error handling & UX
+Show friendly errors: “Backend unreachable at http://localhost:3000. Start it and click Retry.”
+
+
+If context is empty, display “No context found—try Reload context.”
+
+
+Don’t crash if content script is blocked (cross-origin iframes): show a hint.
+
+
+
